@@ -30,6 +30,11 @@ function mine()
 end     
 
 function init()
+    x, y, z = gps.locate()
+    if x == nil or y == nil or z == nil then
+        print("Can't connect to GPS sattelite.")
+        return
+    end
     moveFunctions.faceFront()
     
     comms.hostID = comms.Connect()

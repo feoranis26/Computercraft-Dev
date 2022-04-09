@@ -103,6 +103,8 @@ function gotoReverse(sX, sY)
     end
 end
 function goto(sX, sY, dig)
+    sX = math.floor(sX)
+    sY = math.floor(sY)
     if not is_moving then
         is_moving = true
         pcall(function() goto_unprotected(sX, sY, dig) end)
@@ -209,12 +211,15 @@ function gotoY(goZ)
 end
 
 function goto_multiple(tX, tZ, dig)
+    tX = math.floor(tX)
+    tZ = math.floor(tZ)
+
     while true do
         sleep(1)
         faceFront_Goto()
         goto(tX, tZ, dig)
         x, y, z = gps.locate()
-        if x == worksitePos.x and z == worksitePos.z then
+        if x == tX and z == tZ then
             break
         end
     end 

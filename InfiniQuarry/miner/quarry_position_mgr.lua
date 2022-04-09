@@ -34,7 +34,7 @@ function checkPos()
     tmp = (size - 1) / 2
     sitePos = toVector(miner.homePos.x - tmp + 1, 0, miner.homePos.z - tmp + 1)
 
-    size = size - 1
+    tmpsize = size - 1
 
     if side == 0 then
         mX = sitePos.x + pos
@@ -55,9 +55,9 @@ function checkPos()
     if lX == lX and lZ == lZ then
         worksitePos = toVector(lX, lY, lZ)
 
-        print(mX, mZ, size, pos, side, lX, lZ)
+        print(size, miner.homePos.x, miner.homePos.z, sitePos.x, sitePos.z, mX, mZ, size, pos, side, lX, lZ)
 
-        if mX ~= lX or mZ ~= lZ then
+        if math.abs(mX - lX) > 1 or math.abs(mZ - lZ) > 1 then
             miner.busy = true
             print("I'm not aligned! Trying to go to worksite...")
             atPos = false

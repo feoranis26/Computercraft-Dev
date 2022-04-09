@@ -12,7 +12,7 @@ function Connect()
     cI = 0
     while hostID == -1 do
         term.setCursorPos(1, 1)
-        if cI == 0 then c = "-"; cI = 1 elseif cI == 1 then c = "\\"; cI = 2 elseif cI == 2 then c = "|"; cI = 3 elseif cI == 3 then  = "/"; cI = 0 end
+        if cI == 0 then c = "-"; cI = 1 elseif cI == 1 then c = "\\"; cI = 2 elseif cI == 2 then c = "|"; cI = 3 elseif cI == 3 then c = "/"; cI = 0 end
         print("Connecting, try " .. numTries .. " " .. c)
         numTries = numTries + 1
         rednet.broadcast("CONNECTION_REQUEST", "MINER_CONNECTION")
@@ -63,9 +63,8 @@ function processComms()
             for i = 1, table.getn(Commands.commands) - 1 do
                 local command = Commands.commands[i]
                 if command.name == m then
-                    s, m2 = rednet.receive("MINER_COMMS", 1)
+                    s2, m2 = rednet.receive("MINER_COMMS", 1)
                     term.setCursorPos(1, 4)
-                    print(command.name)
                     rednet.send(s, "QUEUED " .. m, "MINER_COMMS")
                     command_ok = true
                     table.insert(commandQueue, {name = command.name, args = m2})
@@ -88,13 +87,13 @@ function executeCommandQueue()
             cmd = commandQueue[1]
             for i = 1, table.getn(Commands.commands) - 1 do
                 local command = Commands.commands[i]
-                if command.name == cmd then
+                if command.name == cmd.name then
                     if not command.wait or not miner.busy then
                         term.setCursorPos(1, 5)
-                        print("Executing " .. cmd)
-                        rednet.send(hostID, "OK " .. m, "MINER_COMMS")
+                        print("Executing " .. cmd.name)
+                        rednet.send(hostID, "OK " .. cmd.name, "MINER_COMMS")
                         command.execute()
-                        rednet.send(hostID, "DONE " .. m, "MINER_COMMS")
+                        rednet.send(hostID, "DONE " .. cmd.name, "MINER_COMMS")
                         table.remove(commandQueue, 1)
                     end
                 end

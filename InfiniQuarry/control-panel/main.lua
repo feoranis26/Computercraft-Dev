@@ -2,8 +2,7 @@
     InfiniMiner version 0.426
     by feoranis26
     TODO: Refactor this!
- ]] 
-os.loadAPI("GUI.lua")
+ ]] os.loadAPI("GUI.lua")
 os.loadAPI("heartbeat.lua")
 os.loadAPI("minerAPI.lua")
 
@@ -47,6 +46,17 @@ controlMode = tonumber(handler.readLine())
 prevActiveMiners = tonumber(handler.readLine())
 isBootAutomatic = handler.readLine() == "true"
 isNextBootAutomatic = false
+
+docks = {}
+dockSize = tonumber(handler.readLine())
+
+for i = 0, dockSize - 1 do
+    dock_x = tonumber(handler.readLine())
+    dock_y = tonumber(handler.readLine())
+    dock_z = tonumber(handler.readLine())
+
+    table.insert(docks, to_vector(x, y, z))
+end
 
 activeMiners = 0
 workingMiners = 0
@@ -646,7 +656,7 @@ function checkHelper()
     topMiner = miners[1]
     for i = 0, table.getn(miners) - 1 do
         local miner = miners[i + 1]
-        if miner.pos.y > topMiner.pos.y then
+        if miner.active and miner.pos ~= nil and miner.pos.y > topMiner.pos.y then
             topMiner = miner
         else
             miner.helper = false
@@ -665,17 +675,18 @@ function controlMiners()
             local activeMiners = getActiveMiners()
 
             if table.getn(activeMiners) ~= 0 then
-
                 minMiner = activeMiners[1]
                 for i = 0, table.getn(activeMiners) - 1 do
                     local miner = activeMiners[i + 1]
-                    totalBlocks = miner.quarryData.size * miner.quarryData.size - (miner.quarryData.size - 2) *
-                                      (miner.quarryData.size - 2)
-                    blocksMined = ((miner.quarryData.pos + 1) + (miner.quarryData.side * totalBlocks / 4))
-                    blocksLeft = (totalBlocks - blocksMined) * 3
-                    completeness = blocksMined / totalBlocks
-                    if miner.quarryData.size + completeness < minMiner.quarryData.size and not miner.helper then
-                        minMiner = miner
+                    if miner.active and miner.quarryData ~= nil  then
+                        totalBlocks = miner.quarryData.size * miner.quarryData.size - (miner.quarryData.size - 2) *
+                                          (miner.quarryData.size - 2)
+                        blocksMined = ((miner.quarryData.pos + 1) + (miner.quarryData.side * totalBlocks / 4))
+                        blocksLeft = (totalBlocks - blocksMined) * 3
+                        completeness = blocksMined / totalBlocks
+                        if miner.quarryData.size + completeness < minMiner.quarryData.size and not miner.helper then
+                            minMiner = miner
+                        end
                     end
                 end
 
@@ -689,7 +700,7 @@ function controlMiners()
 
                 for i = 1, table.getn(activeMiners) - 1 do
                     local miner = activeMiners[i + 1]
-                    if not miner.helper then
+                    if miner.active and miner.quarryData ~= nil and not miner.helper then
                         if ((miner.quarryData.size > minMiner.quarryData.size + 2 and controlMode == 2) or
                             (controlMode == 3 and miner.quarryData.size > 18)) and miner.working then
                             miner:stop()
@@ -709,7 +720,7 @@ function controlMiners()
             if table.getn(miners) ~= 0 then
                 for i = 0, table.getn(miners) - 1 do
                     local miner = miners[i + 1]
-                    if miner.quarryData.size < 18 and not miner.helper then
+                    if miner.active and miner.quarryData ~= nil  and miner.quarryData.size < 18 and not miner.helper then
                         allMinersBigEnough = false
                     else
                         miner:stop()
@@ -738,8 +749,17 @@ function saveQuarryData()
         handler.writeLine(controlMode)
         handler.writeLine(activeMiners)
         handler.writeLine(isNextBootAutomatic)
+
+        handler.writeLine(#docks)
+
+        for i = 0, #docks - 1 do
+            handler.writeLine(docks[i + 1].x)
+            handler.writeLine(docks[i + 1].y)
+            handler.writeLine(docks[i + 1].z)
+        end
+
         handler.close()
-        sleep(1)
+        sleep(5)
     end
 end
 
