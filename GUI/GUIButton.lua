@@ -17,6 +17,9 @@ function Button:new(gui, name, x,y,w,h, col, onPress, text, textColor)
     btn.onPress = onPress
     btn.text = text
     btn.textColor = textColor
+
+    btn.enabled = true
+    
     setmetatable(btn, self)
     self.__index = self
     gui:AddElement(btn)

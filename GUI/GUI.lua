@@ -18,7 +18,9 @@ function UI:display()
         end
         term.clear()
         for n, element in pairs(self.elements) do
-            element:display()
+            if element.enabled then
+                element:display()
+            end
         end
 
         sleep(0.1)
@@ -30,7 +32,9 @@ function UI:displayOnce()
     end
     term.clear()
     for n, element in pairs(self.elements) do
-        element:display()
+        if element.enabled then
+            element:display()
+        end
     end
 end
 

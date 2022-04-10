@@ -36,6 +36,10 @@ function mine()
 
             quarry_position_mgr.checkYLevel()
             quarry_position_mgr.next_block()
+
+            moveFunctions.digUp()
+            moveFunctions.digDown()
+            actions.checkForLiquids()
         else
             sleep(0.1)
         end

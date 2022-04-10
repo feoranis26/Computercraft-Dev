@@ -108,7 +108,28 @@ function getHomePosFromQuarryData()
     return vector
 end
 
-function moveToNextLocation()
+relocating = false
+relocationStatus = ""
+
+startRelocation = false
+
+function updateRelocationUI()
+    while true do
+        if relocating then
+            gui:ChangeElement("controlModeLabel", "enabled", false)
+            gui:ChangeElement("controlModeButton", "enabled", false)
+
+            gui:ChangeElement("relocateStatusLabel", "enabled", true)
+            gui:ChangeElement("relocateStatusLabel", "text", "RELOCATING! STATUS: " .. relocationStatus)
+        end
+
+        sleep(1)
+    end
+end
+
+function relocate()
+    chposStatus = "STOPPING MINERS"
+    relocating = true
     quarryPos = quarryPos + 16
     if quarrySide ~= 3 and quarryPos == quarrySize then
         quarrySide = quarrySide + 1
@@ -135,11 +156,13 @@ function moveToNextLocation()
         sleep(1)
     end
 
+    relocationStatus = "HOMING MINERS"
+
     while true do
         minersNotHomed = false
         for i = 0, #miners - 1 do
             local miner = miners[i + 1]
-            if not miner.busy then
+            if not miner.busy and (miner.pos.x ~= hubPosition.x or miner.pos.z ~= hubPosition.z) then
                 minersNotHomed = true
                 miner:send("HOME")
             end
@@ -164,15 +187,7 @@ function moveToNextLocation()
         sleep(1)
     end
 
-    topMiner = miners[1]
-    for i = 0, table.getn(miners) - 1 do
-        local miner = miners[i + 1]
-        if miner.pos.y > topMiner.pos.y then
-            topMiner = miner
-        end
-    end
-
-    sleep(1)
+    relocationStatus = "RECONFIGURING MINERS"
 
     prevHubPosition = hubPosition
     hubPosition = getHomePosFromQuarryData()
@@ -186,6 +201,8 @@ function moveToNextLocation()
     broadcastToMiners("RESET_SIZE")
     sleep(1)
 
+    relocationStatus = "MOVING MINERS"
+
     while true do
         minersNotHomed = false
         for i = 0, #miners - 1 do
@@ -214,77 +231,8 @@ function moveToNextLocation()
         end
         sleep(1)
     end
-
-    while true do
-        minersNotStarted = false
-        for i = 0, #miners - 1 do
-            local miner = miners[i + 1]
-            if (((not (miner.working and miner.quarryData.size == 3)) or ((not miner.working)) and not miner.busy)) and
-                (not miner.helper) and miner.ID ~= topMiner.ID then
-                minersNotStarted = true
-                miner:send("RESET_SIZE")
-                miner:send("START")
-            end
-        end
-        if not minersNotStarted then
-            break
-        end
-        sleep(1)
-    end
-
-    topMiner:send("HOME")
-    sleep(3)
-
-    while true do
-        if not topMiner.busy then
-            break
-        end
-        sleep(1)
-    end
-
-    topMiner:send("PLACE_CHKLD")
-    sleep(2)
-    hubPosition = prevHubPosition
-
-    topMiner:send("RESTART")
-    sleep(5)
-    topMiner:send("HOME")
-    sleep(3)
-
-    while true do
-        if not topMiner.busy then
-            break
-        end
-        sleep(1)
-    end
-
-    topMiner:send("MINE_CHKLD")
-    sleep(2)
-
-    hubPosition = nextHubPosition
-
-    topMiner:send("RESTART")
-    sleep(3)
-    topMiner:send("HOME")
-    sleep(5)
-
     isNextBootAutomatic = true
     sleep(1)
-
-    while true do
-        minersAreNotStopped = false
-        for i = 0, #miners - 1 do
-            local miner = miners[i + 1]
-            if miner.working then
-                minersAreNotStopped = true
-                broadcastToMiners("STOP")
-            end
-        end
-        if not minersAreNotStopped then
-            break
-        end
-        sleep(1)
-    end
 
     broadcastToMiners("RESTART")
     os.reboot()
@@ -438,6 +386,8 @@ gui = {}
 
 controlModeNames = {"MANUAL", "BALANCED", "AUTO"}
 
+busyMiners = 0
+
 function initControls()
     sx, sy = m2.getSize()
     m2.setBackgroundColor(colors.gray)
@@ -445,12 +395,15 @@ function initControls()
     gui = GUI.UI:new("right")
 
     GUILabel.Label:new(gui, "Label", sx / 2, 1, colors.white, "                MINER CTL                 ", colors.gray)
-    GUILabel.Label:new(gui, "minersLabelText", sx / 2, 2, colors.white, "Total / Connected / Working miners:")
+    GUILabel.Label:new(gui, "minersLabelText", sx / 2, 2, colors.white, "Total / Connected / Working / Busy:")
     GUILabel.Label:new(gui, "minersLabel", sx / 2, 3, colors.white,
-        #miners .. " / " .. activeMiners .. " / " .. workingMiners)
+        #miners .. " / " .. activeMiners .. " / " .. workingMiners .. " / " .. busyMiners)
     GUILabel.Label:new(gui, "homePosLabel", sx / 2, 4, colors.white, "0, 0")
 
     GUILabel.Label:new(gui, "controlModeLabel", sx / 2, 6, colors.white, "Control mode:")
+
+    -- GUILabel.Label:new(gui, "controlModeLabel", sx / 2, 6, colors.white, "Control mode:")
+
     GUIButton.Button:new(gui, "controlModeButton", sx / 2, 8, 0, 3, colors.gray, function()
         controlMode = math.max(1, math.min(4, controlMode + 1))
         if controlMode == 4 then
@@ -469,11 +422,11 @@ function initControls()
     end, "ALL OFF", colors.black)
 
     GUIButton.Button:new(gui, "nextChunk", sx / 3, 21, 0, 3, colors.red, function()
-        moveToNextLocation()
+        startRelocation = true
     end, "NEXT CHUNK!", colors.black)
-    GUIButton.Button:new(gui, "nextChunk", 2 * sx / 3, 21, 0, 3, colors.red, function()
+    GUIButton.Button:new(gui, "rstAll", 2 * sx / 3, 21, 0, 3, colors.red, function()
         broadcastToMiners("RESET_SIZE")
-    end, "RESET ALL", colors.black)
+    end, "RESET SIZES", colors.black)
 
     GUIButton.Button:new(gui, "allReboot", sx / 2, 16, 0, 3, colors.red, function()
         broadcastToMiners("RESTART", true)
@@ -488,6 +441,9 @@ function initControls()
         os.reboot()
     end, "R", colors.black)
 
+    GUILabel.Label:new(gui, "relocateStatusLabel", sx / 2, 6, colors.white, "CHANGING POS! STATUS:")
+    gui:ChangeElement("relocateStatusLabel", "enabled", false)
+
 end
 
 function updateControls()
@@ -499,7 +455,7 @@ function updateControls()
     end
     while true do
         sleep(0.1)
-        gui:ChangeElement("minersLabel", "text", #miners .. " / " .. activeMiners .. " / " .. workingMiners)
+        gui:ChangeElement("minersLabel", "text", #miners .. " / " .. activeMiners .. " / " .. workingMiners .. " / " .. busyMiners)
 
         gui:ChangeElement("homePosLabel", "text", "Home :" .. hubPosition.x .. ", " .. hubPosition.z .. ", " ..
             quarryPos .. ", " .. quarrySide .. ", " .. quarrySize)
@@ -517,6 +473,7 @@ function displayMinerInfo()
     while true do
         activeMiners = 0
         workingMiners = 0
+        busyMiners = 0
         term.setBackgroundColor(colors.black)
         term.clear()
         if table.getn(miners) ~= 0 then
@@ -570,7 +527,7 @@ function displayMinerInfo()
                             term.write("Position : " .. miner.position.x .. ", " .. miner.position.y .. ", " ..
                                            miner.position.z)
                             term.setCursorPos(i * 40 + 12 + scroll, 10)
-                            term.write("Working :" .. tostring(miner.working))
+                            term.write("Busy :" .. tostring(miner.working or miner.busy))
                         end
 
                         -- start/stop button
@@ -581,6 +538,10 @@ function displayMinerInfo()
                         else
                             clr = colors.green
                             t = "START"
+                        end
+
+                        if miner.busy then
+                            busyMiners = busyMiners + 1
                         end
 
                         -- buttons
@@ -712,7 +673,7 @@ function controlMiners()
                     end
                 end
 
-                --checkHelper()
+                -- checkHelper()
 
                 for i = 1, table.getn(activeMiners) - 1 do
                     local miner = activeMiners[i + 1]
@@ -748,7 +709,7 @@ function controlMiners()
                 allMinersBigEnough = false
             end
             if allMinersBigEnough then
-                moveToNextLocation()
+                relocate()
                 sleep(120)
             end
         end
@@ -776,6 +737,10 @@ function controlMiners()
                 miner:send("UPDATE_YLEVEL")
                 miner:sendArgs(level)
             end
+        end
+
+        if startRelocation then
+            relocate()
         end
 
         sleep(1)
@@ -829,6 +794,6 @@ function init()
     hubPosition = getHomePosFromQuarryData()
     parallel.waitForAll(heartbeat.startHost, connectionHost, updateMinerInfo, displayMinerInfo, buttons, function()
         gui:events()
-    end, updateControls, controlMiners, saveQuarryData)
+    end, updateControls, controlMiners, saveQuarryData, updateRelocationUI)
 end
 init()

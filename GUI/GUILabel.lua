@@ -16,6 +16,9 @@ function Label:new(gui, name, x,y, col, text, back)
     btn.onPress = onPress
     btn.text = text
     btn.back = back
+
+    btn.enabled = true
+    
     setmetatable(btn, self)
     self.__index = self
     gui:AddElement(btn)

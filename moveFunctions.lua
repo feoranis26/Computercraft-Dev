@@ -3,11 +3,11 @@ redoGoto = false
 is_moving = false
 
 is_paused = false
-function faceFront_Goto()
-    pcall(faceFront_Goto_unprotected)
+function faceFront_Goto(dig)
+    pcall(function() faceFront_Goto_unprotected(dig) end)
 end
-function faceFront()
-    pcall(faceFront_unprotected)
+function faceFront(dig)
+    pcall(function() faceFront_unprotected(dig) end)
 end
 
 function contains(table, val)
@@ -23,30 +23,26 @@ bannedBlocks = {"computercraft:turtle_advanced", "chisel:technical", "chisel:tec
 
 function digUp()
     local t, d = turtle.inspectUp()
-    if not contains(bannedBlocks, d.name) then
+    if t and not contains(bannedBlocks, d.name) then
         turtle.digUp()
     end
 end
 
 function digForward()
     local t, d = turtle.inspect()
-    if not contains(bannedBlocks, d.name) then
+    if t and not contains(bannedBlocks, d.name) then
         turtle.dig()
-    else
-        print(contains(bannedBlocks, d.name))
-        if nil > nil then
-        end
     end
 end
 
 function digDown()
     local t, d = turtle.inspectDown()
-    if not contains(bannedBlocks, d.name) then
+    if t and not contains(bannedBlocks, d.name) then
         turtle.digDown()
     end
 end
 
-function faceFront_unprotected()
+function faceFront_unprotected(dig)
     pX, pZ, pY = gps.locate()
     if turtle.detect() == true then
         while turtle.detect() == true do
@@ -54,6 +50,12 @@ function faceFront_unprotected()
         end
     end
     turtle.forward()
+
+    if dig then
+        digUp()
+        digForward()
+        digDown()
+    end
 
     aX = 0
     aY = 0
@@ -68,6 +70,13 @@ function faceFront_unprotected()
     nX = aX - pX
     nY = aY - pY
     turtle.back()
+
+    if dig then
+        digUp()
+        digForward()
+        digDown()
+    end
+
     if nY == 1 then
         turtle.turnLeft()
         turtle.turnLeft()
@@ -85,7 +94,20 @@ function faceFront_Goto_unprotected()
             turtle.turnLeft()
         end
     end
+    if dig then
+        digUp()
+        digForward()
+        digDown()
+    end
+
     turtle.forward()
+
+    if dig then
+        digUp()
+        digForward()
+        digDown()
+    end
+
     aX, aZ, aY = gps.locate()
     nX = aX - pX
     nY = aY - pY
@@ -99,7 +121,7 @@ function faceFront_Goto_unprotected()
         turtle.turnRight()
     end
 end
-function gotoReverse(sX, sY)
+function gotoReverse(sX, sY, dig)
     redoGoto = false
     print("Goto attempt 2")
     aX, aZ, aY = gps.locate()
@@ -110,6 +132,12 @@ function gotoReverse(sX, sY)
             for b = 0, y2 - 1 do
                 while is_paused do sleep(1) end
                 turtle.forward()
+
+                if dig then
+                    digUp()
+                    digForward()
+                    digDown()
+                end
             end
         else
             turtle.turnLeft()
@@ -117,6 +145,12 @@ function gotoReverse(sX, sY)
             for b = 0, y2 * -1 -1 do
                 while is_paused do sleep(1) end
                 turtle.forward()
+
+                if dig then
+                    digUp()
+                    digForward()
+                    digDown()
+                end
             end
             turtle.turnRight()
             turtle.turnRight()
@@ -126,6 +160,12 @@ function gotoReverse(sX, sY)
             for a = 0, x2 - 1 do
                 while is_paused do sleep(1) end
                 turtle.forward()
+
+                if dig then
+                    digUp()
+                    digForward()
+                    digDown()
+                end
             end
             turtle.turnRight()
         else
@@ -133,6 +173,12 @@ function gotoReverse(sX, sY)
             for a = 0, x2 * -1 - 1 do
                 while is_paused do sleep(1) end
                 turtle.forward()
+
+                if dig then
+                    digUp()
+                    digForward()
+                    digDown()
+                end
             end
             turtle.turnLeft()
         end
@@ -234,7 +280,7 @@ function goto_unprotected(sX, sY, dig)
             turtle.turnRight()
         end
         if redoGoto == true then
-            gotoReverse(sX, sY)
+            gotoReverse(sX, sY, dig)
         end
     end
 end
@@ -264,10 +310,10 @@ function goto_multiple(tX, tZ, dig)
         end
 
         sleep(1)
-        faceFront_Goto()
+        faceFront_Goto(dig)
         goto(tX, tZ, dig)
     end 
-    faceFront()
+    faceFront(dig)
 end
 
 function pause_movements(pause)

@@ -57,19 +57,19 @@ function checkPos()
 
         print(quarry_position_mgr.size, miner.homePos.x, miner.homePos.z, sitePos.x, sitePos.z, mX, mZ, quarry_position_mgr.size, quarry_position_mgr.pos, quarry_position_mgr.side, lX, lZ)
 
-        if math.abs(mX - lX) > 1 or math.abs(mZ - lZ) > 1 then
+        if math.abs(mX - lX) > 0.2 or math.abs(mZ - lZ) > 0.2 then
             miner.busy = true
             print("I'm not aligned! Trying to go to worksite...")
             atPos = false
             while atPos == false do
-                moveFunctions.faceFront_Goto()
+                moveFunctions.faceFront_Goto(true)
                 moveFunctions.goto(mX, mZ, true)
                 x, y, z = gps.locate()
                 if x == mX and z == mZ then
                     atPos = true
                 end
             end 
-            moveFunctions.faceFront()
+            moveFunctions.faceFront(true)
             for i = 0, quarry_position_mgr.side do
                 turtle.turnRight()
             end

@@ -109,36 +109,24 @@ function chunkLoader(mine)
     turtle.down()
 end
 
-function checkForLiquids() --TODO: Test this!
-    local x, dat = turtle.inspect()
+function checkForLiquids() -- TODO: Test this!
     local x, datUp = turtle.inspectUp()
     local x, datDown = turtle.inspectDown()
 
-    go = false
-
-    if dat ~= nil then
-        if dat.name == "minecraft:water" or dat.name == "minecraft:lava" then
-            go = true
-        end
-    end
     if datUp ~= nil then
         if datUp.name == "minecraft:water" or datUp.name == "minecraft:lava" then
-            go = true
+            turtle.digUp()
+
+            turtle.up()
+            turtle.down()
         end
     end
     if datDown ~= nil then
         if datDown.name == "minecraft:water" or datDown.name == "minecraft:lava" or datDown.name ==
             "minecraft:flowing_water" or datDown.name == "minecraft:flowing_lava" then
-            go = true
+            turtle.digDown()
+            turtle.down()
+            turtle.up()
         end
-    end
-
-    if go then
-        turtle.digUp()
-        turtle.digDown()
-        turtle.up()
-        turtle.down()
-        turtle.down()
-        turtle.up()
     end
 end
