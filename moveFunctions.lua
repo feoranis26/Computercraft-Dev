@@ -10,6 +10,42 @@ function faceFront()
     pcall(faceFront_unprotected)
 end
 
+function contains(table, val)
+    for i = 1, #table do
+        if table[i] == val then
+            return true
+        end
+    end
+    return false
+end
+
+bannedBlocks = {"computercraft:turtle_advanced", "chisel:technical", "chisel:technical1", "chisel:factory"}
+
+function digUp()
+    local t, d = turtle.inspectUp()
+    if not contains(bannedBlocks, d.name) then
+        turtle.digUp()
+    end
+end
+
+function digForward()
+    local t, d = turtle.inspect()
+    if not contains(bannedBlocks, d.name) then
+        turtle.dig()
+    else
+        print(contains(bannedBlocks, d.name))
+        if nil > nil then
+        end
+    end
+end
+
+function digDown()
+    local t, d = turtle.inspectDown()
+    if not contains(bannedBlocks, d.name) then
+        turtle.digDown()
+    end
+end
+
 function faceFront_unprotected()
     pX, pZ, pY = gps.locate()
     if turtle.detect() == true then
@@ -130,10 +166,12 @@ function goto_unprotected(sX, sY, dig)
             for a = 0, x - 1 do
                 while is_paused do sleep(1) end
                 turtle.forward()
+
+                
                 if dig then
-                    turtle.dig()
-                    turtle.digUp()
-                    turtle.digDown()
+                    digUp()
+                    digForward()
+                    digDown()
                 elseif turtle.detect() == true then
                     redoGoto = true
                     print("redoing")
@@ -146,10 +184,11 @@ function goto_unprotected(sX, sY, dig)
             for a = 0, x * -1 -1 do
                 while is_paused do sleep(1) end
                 turtle.forward()
+
                 if dig then
-                    turtle.dig()
-                    turtle.digUp()
-                    turtle.digDown()
+                    digUp()
+                    digForward()
+                    digDown()
                 elseif turtle.detect() == true then
                     redoGoto = true
                     print("redoing")
@@ -163,10 +202,11 @@ function goto_unprotected(sX, sY, dig)
             for b = 0, y2 - 1 do
                 while is_paused do sleep(1) end
                 turtle.forward()
+                
                 if dig then
-                    turtle.dig()
-                    turtle.digUp()
-                    turtle.digDown()
+                    digUp()
+                    digForward()
+                    digDown()
                 elseif turtle.detect() == true then
                     redoGoto = true
                     print("redoing")
@@ -179,10 +219,11 @@ function goto_unprotected(sX, sY, dig)
             for b = 0, y2 * -1 -1 do
                 while is_paused do sleep(1) end
                 turtle.forward()
+
                 if dig then
-                    turtle.dig()
-                    turtle.digUp()
-                    turtle.digDown()
+                    digUp()
+                    digForward()
+                    digDown()
                 elseif turtle.detect() == true then
                     redoGoto = true
                     print("redoing")
@@ -197,14 +238,16 @@ function goto_unprotected(sX, sY, dig)
         end
     end
 end
-function gotoY(goZ)
-    x, y, z = gps.locate()
-    if z > goZ then
-        for i = 0, (z - goZ) - 1 do
+function gotoY(goY)
+    gyx, gyy, gyz = gps.locate()
+    if gyy > goY then
+        for i = 0, (gyy - goY) - 1 do
+            digDown()
             turtle.down()
         end
-    elseif z < goZ then
-        for i = 0, (goZ - z) - 1 do
+    elseif gyy < goY then
+        for i = 0, (goY - gyy) - 1 do
+            digUp()
             turtle.up()
         end
     end
@@ -215,13 +258,14 @@ function goto_multiple(tX, tZ, dig)
     tZ = math.floor(tZ)
 
     while true do
+        x, y, z = gps.locate()
+        if x == tX and z == tZ then
+            return
+        end
+
         sleep(1)
         faceFront_Goto()
         goto(tX, tZ, dig)
-        x, y, z = gps.locate()
-        if x == tX and z == tZ then
-            break
-        end
     end 
     faceFront()
 end
@@ -229,3 +273,4 @@ end
 function pause_movements(pause)
     is_paused = pause
 end
+

@@ -117,14 +117,12 @@ function checkForLiquids() --TODO: Test this!
     go = false
 
     if dat ~= nil then
-        if dat.name == "minecraft:water" or dat.name == "minecraft:lava" or dat.name == "minecraft:flowing_water" or
-            dat.name == "minecraft:flowing_lava" then
+        if dat.name == "minecraft:water" or dat.name == "minecraft:lava" then
             go = true
         end
     end
     if datUp ~= nil then
-        if datUp.name == "minecraft:water" or datUp.name == "minecraft:lava" or datUp.name == "minecraft:flowing_water" or
-            datUp.name == "minecraft:flowing_lava" then
+        if datUp.name == "minecraft:water" or datUp.name == "minecraft:lava" then
             go = true
         end
     end

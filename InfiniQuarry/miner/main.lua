@@ -1,10 +1,7 @@
 --[[ 
     InfiniMiner version 0.426
     by feoranis26
- ]]
-
-
-rednet.open("right")
+ ]] rednet.open("right")
 os.loadAPI("heartbeat.lua")
 os.loadAPI("moveFunctions.lua")
 
@@ -14,20 +11,38 @@ os.loadAPI("actions.lua")
 os.loadAPI("comms.lua")
 os.loadAPI("quarry_position_mgr.lua")
 
+handler = fs.open("host", "r")
+
+if handler ~= nil then
+    comms.prevHostID = tonumber(handler.readLine())
+else
+    comms.prevHostID = -1
+end
+
 function mine()
     while true do
         if miner.working and not miner.helper then
-            turtle.dig()
+            t, dwn = turtle.inspectDown()
+            t, up = turtle.inspectUp()
+
+            moveFunctions.digForward()
             turtle.forward()
-            turtle.digUp()
-            turtle.digDown()
-            actions.checkForLiquids() -- TODO: Test this!
+            moveFunctions.digUp()
+            moveFunctions.digDown()
+
+            actions.checkForLiquids()
+            actions.checkItems()
+            actions.checkFuel()
+
+            quarry_position_mgr.checkYLevel()
             quarry_position_mgr.next_block()
         else
             sleep(0.1)
         end
+
+        quarry_position_mgr.checkYLevel()
     end
-end     
+end
 
 function init()
     x, y, z = gps.locate()
@@ -36,8 +51,14 @@ function init()
         return
     end
     moveFunctions.faceFront()
-    
+
+    miner.yLevel = y
+
     comms.hostID = comms.Connect()
+
+    print("New host address permanently set to: " .. comms.hostID)
+    handler2 = fs.open("host", "w")
+    handler2.writeLine(comms.hostID)
 
     term.clear()
     term.setCursorPos(1, 1)

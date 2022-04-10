@@ -1,3 +1,5 @@
+--wget run http://localhost:8080/InfiniQuarry/control-panel/startup.lua
+
 print("Startup...")
 
 function getFile(path, fileName)

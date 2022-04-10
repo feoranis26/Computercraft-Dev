@@ -15,9 +15,9 @@ function toVector(x, y, z)
 end
 
 function gotoWorksite()
-    if (not (miner.busy or miner.working)) and worksitePos ~= nil and worksitePos.x ~= 0 and worksitePos.z ~= 0 then
+    if (not (miner.busy or miner.working)) and worksitePos ~= nil and quarry_position_mgr.worksitePos.x ~= 0 and quarry_position_mgr.worksitePos.z ~= 0 then
         busy = true
-        moveFunctions.goto_multiple(worksitePos.x, worksitePos.z, true)
+        moveFunctions.goto_multiple(quarry_position_mgr.worksitePos.x, quarry_position_mgr.worksitePos.z, true)
         for i = 0, quarry_position_mgr.side do
             turtle.turnRight()
         end
@@ -31,31 +31,31 @@ function gotoWorksite()
 end
 
 function checkPos()
-    tmp = (size - 1) / 2
+    tmp = (quarry_position_mgr.size - 1) / 2
     sitePos = toVector(miner.homePos.x - tmp + 1, 0, miner.homePos.z - tmp + 1)
 
-    tmpsize = size - 1
+    tmpsize = quarry_position_mgr.size - 1
 
-    if side == 0 then
-        mX = sitePos.x + pos
+    if quarry_position_mgr.side == 0 then
+        mX = sitePos.x + quarry_position_mgr.pos
         mZ = sitePos.z
-    elseif side == 1 then
-        mX = sitePos.x + size
-        mZ = sitePos.z + pos
-    elseif side == 2 then
-        mX = sitePos.x + size - pos
-        mZ = sitePos.z + size
-    elseif side == 3 then
+    elseif quarry_position_mgr.side == 1 then
+        mX = sitePos.x + quarry_position_mgr.size
+        mZ = sitePos.z + quarry_position_mgr.pos
+    elseif quarry_position_mgr.side == 2 then
+        mX = sitePos.x + quarry_position_mgr.size - quarry_position_mgr.pos
+        mZ = sitePos.z + quarry_position_mgr.size
+    elseif quarry_position_mgr.side == 3 then
         mX = sitePos.x
-        mZ = sitePos.z + size - pos
+        mZ = sitePos.z + quarry_position_mgr.size - quarry_position_mgr.pos
     end
     term.setCursorPos(1, 8)
 
     lX, lY, lZ = gps.locate()
-    if lX == lX and lZ == lZ then
-        worksitePos = toVector(lX, lY, lZ)
+    if lX == lX and lZ == lZ and lY == lY then
+        quarry_position_mgr.worksitePos = toVector(lX, lY, lZ)
 
-        print(size, miner.homePos.x, miner.homePos.z, sitePos.x, sitePos.z, mX, mZ, size, pos, side, lX, lZ)
+        print(quarry_position_mgr.size, miner.homePos.x, miner.homePos.z, sitePos.x, sitePos.z, mX, mZ, quarry_position_mgr.size, quarry_position_mgr.pos, quarry_position_mgr.side, lX, lZ)
 
         if math.abs(mX - lX) > 1 or math.abs(mZ - lZ) > 1 then
             miner.busy = true
@@ -70,28 +70,36 @@ function checkPos()
                 end
             end 
             moveFunctions.faceFront()
-            for i = 0, side do
+            for i = 0, quarry_position_mgr.side do
                 turtle.turnRight()
             end
             miner.busy = false
         end
+
+        
+    end
+end
+
+function checkYLevel()
+    if miner.yLevel ~= -1 and lY ~= miner.yLevel then
+        moveFunctions.gotoY(miner.yLevel)
     end
 end
 
 function next_block()
-    if side ~= 3 and pos == size - 1 then
-        side = side + 1
-        pos = 0
+    if quarry_position_mgr.side ~= 3 and quarry_position_mgr.pos == quarry_position_mgr.size - 1 then
+        quarry_position_mgr.side = quarry_position_mgr.side + 1
+        quarry_position_mgr.pos = 0
         turtle.turnRight()
-    elseif pos == size - 1 then
-        side = 0
-        pos = 0
+    elseif quarry_position_mgr.pos == quarry_position_mgr.size - 1 then
+        quarry_position_mgr.side = 0
+        quarry_position_mgr.pos = 0
         actions.changeSize()
-        size = size + 2
+        quarry_position_mgr.size = quarry_position_mgr.size + 2
         print("CHANGING SIZE to ".. size)
     end
     lX, lY, lZ = gps.locate()
-    worksitePos = toVector(lX, lY, lZ)
-    pos = pos + 1
+    quarry_position_mgr.worksitePos = toVector(lX, lY, lZ)
+    quarry_position_mgr.pos = quarry_position_mgr.pos + 1
     checkPos()
 end

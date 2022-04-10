@@ -58,6 +58,17 @@ for i = 0, dockSize - 1 do
     table.insert(docks, to_vector(x, y, z))
 end
 
+minerLevels = {}
+minerLevelsSize = tonumber(handler.readLine())
+
+for i = 0, minerLevelsSize - 1 do
+    levelDat = {}
+    levelDat.id = tonumber(handler.readLine())
+    levelDat.level = tonumber(handler.readLine())
+
+    table.insert(minerLevels, levelDat)
+end
+
 activeMiners = 0
 workingMiners = 0
 term.setCursorPos(1, 1)
@@ -538,7 +549,8 @@ function displayMinerInfo()
                     -- telemetry
                     if not miner.helper then
                         if miner.position.z ~= nil then
-                            if miner.quarryData ~= nil then
+                            if miner.quarryData ~= nil and miner.quarryData.size ~= nil and miner.quarryData.side ~= nil and
+                                miner.quarryData.pos ~= nil then
                                 totalBlocks = miner.quarryData.size * miner.quarryData.size -
                                                   (miner.quarryData.size - 2) * (miner.quarryData.size - 2)
                                 blocksMined = ((miner.quarryData.pos + 1) + (miner.quarryData.side * totalBlocks / 4))
@@ -548,6 +560,9 @@ function displayMinerInfo()
                                 term.write("Size : " .. miner.quarryData.size .. ", Completed : %" .. completeness)
                                 term.setCursorPos(i * 40 + 12 + scroll, 12)
                                 term.write("Blocks left: " .. blocksLeft)
+                            else
+                                term.setCursorPos(i * 40 + 7 + scroll, 11)
+                                term.write("NO QUARRY DATA!")
                             end
                             term.setCursorPos(i * 40 + 12 + scroll, 8)
                             term.write("Fuel level :" .. miner.energyLevel)
@@ -656,13 +671,14 @@ function checkHelper()
     topMiner = miners[1]
     for i = 0, table.getn(miners) - 1 do
         local miner = miners[i + 1]
-        if miner.active and miner.pos ~= nil and miner.pos.y > topMiner.pos.y then
+        if miner.active and miner.pos ~= nil and miner.pos.y >= topMiner.pos.y then
             topMiner = miner
         else
             miner.helper = false
         end
     end
 
+    topMiner.helper = true
     topMiner:setHelper(true)
 end
 
@@ -678,7 +694,7 @@ function controlMiners()
                 minMiner = activeMiners[1]
                 for i = 0, table.getn(activeMiners) - 1 do
                     local miner = activeMiners[i + 1]
-                    if miner.active and miner.quarryData ~= nil  then
+                    if miner.active and miner.quarryData ~= nil and miner.quarryData.size ~= nil then
                         totalBlocks = miner.quarryData.size * miner.quarryData.size - (miner.quarryData.size - 2) *
                                           (miner.quarryData.size - 2)
                         blocksMined = ((miner.quarryData.pos + 1) + (miner.quarryData.side * totalBlocks / 4))
@@ -696,11 +712,11 @@ function controlMiners()
                     end
                 end
 
-                checkHelper()
+                --checkHelper()
 
                 for i = 1, table.getn(activeMiners) - 1 do
                     local miner = activeMiners[i + 1]
-                    if miner.active and miner.quarryData ~= nil and not miner.helper then
+                    if miner.active and miner.quarryData ~= nil and miner.quarryData.size ~= nil and not miner.helper then
                         if ((miner.quarryData.size > minMiner.quarryData.size + 2 and controlMode == 2) or
                             (controlMode == 3 and miner.quarryData.size > 18)) and miner.working then
                             miner:stop()
@@ -712,6 +728,7 @@ function controlMiners()
                         end
                     end
                 end
+
             end
         end
         if controlMode == 3 then
@@ -720,7 +737,8 @@ function controlMiners()
             if table.getn(miners) ~= 0 then
                 for i = 0, table.getn(miners) - 1 do
                     local miner = miners[i + 1]
-                    if miner.active and miner.quarryData ~= nil  and miner.quarryData.size < 18 and not miner.helper then
+                    if miner.active and miner.quarryData ~= nil and miner.quarryData.size ~= nil and
+                        miner.quarryData.size < 18 and not miner.helper then
                         allMinersBigEnough = false
                     else
                         miner:stop()
@@ -734,6 +752,32 @@ function controlMiners()
                 sleep(120)
             end
         end
+
+        for i = 0, table.getn(miners) - 1 do
+            local miner = miners[i + 1]
+            if miner.active and miner.pos ~= nil and miner.pos.y ~= nil then
+                level = -1
+                for j = 0, #minerLevels - 1 do
+                    if minerLevels[j + 1].id == miner.ID then
+                        level = minerLevels[j + 1].level
+                        break
+                    end
+                end
+
+                if level == -1 then
+                    ldat = {}
+                    ldat.id = miner.ID
+                    ldat.level = miner.pos.y
+
+                    table.insert(minerLevels, ldat)
+                    level = miner.pos.y
+                end
+
+                miner:send("UPDATE_YLEVEL")
+                miner:sendArgs(level)
+            end
+        end
+
         sleep(1)
     end
 end
@@ -756,6 +800,23 @@ function saveQuarryData()
             handler.writeLine(docks[i + 1].x)
             handler.writeLine(docks[i + 1].y)
             handler.writeLine(docks[i + 1].z)
+        end
+
+        handler.writeLine(#miners)
+
+        for i = 0, #miners - 1 do
+            local miner = miners[i + 1]
+
+            level = -1
+            for i = 0, #minerLevels - 1 do
+                if minerLevels[i + 1].id == miner.ID then
+                    level = minerLevels[i + 1].level
+                    break
+                end
+            end
+
+            handler.writeLine(miner.ID)
+            handler.writeLine(level)
         end
 
         handler.close()

@@ -1,4 +1,5 @@
 hostID = -1
+prevHostID = -1
 function toVector(x, y, z)
     local vector = {}
     vector.x = x
@@ -15,7 +16,12 @@ function Connect()
         if cI == 0 then c = "-"; cI = 1 elseif cI == 1 then c = "\\"; cI = 2 elseif cI == 2 then c = "|"; cI = 3 elseif cI == 3 then c = "/"; cI = 0 end
         print("Connecting, try " .. numTries .. " " .. c)
         numTries = numTries + 1
-        rednet.broadcast("CONNECTION_REQUEST", "MINER_CONNECTION")
+
+        if prevHostID ~= -1 then
+            rednet.send(prevHostID, "CONNECTION_REQUEST", "MINER_CONNECTION")
+        else
+            rednet.broadcast("CONNECTION_REQUEST", "MINER_CONNECTION")
+        end
         if numTries > 10 then
             print("Can't connect to host.\nCheck if the host is running.")
         end
@@ -63,9 +69,9 @@ function processComms()
             for i = 1, table.getn(Commands.commands) - 1 do
                 local command = Commands.commands[i]
                 if command.name == m then
-                    s2, m2 = rednet.receive("MINER_COMMS", 1)
-                    term.setCursorPos(1, 4)
                     rednet.send(s, "QUEUED " .. m, "MINER_COMMS")
+                    s2, m2 = rednet.receive("MINER_ARGS", 1)
+                    term.setCursorPos(1, 4)
                     command_ok = true
                     table.insert(commandQueue, {name = command.name, args = m2})
                     break
@@ -92,7 +98,7 @@ function executeCommandQueue()
                         term.setCursorPos(1, 5)
                         print("Executing " .. cmd.name)
                         rednet.send(hostID, "OK " .. cmd.name, "MINER_COMMS")
-                        command.execute()
+                        command.execute(cmd.args)
                         rednet.send(hostID, "DONE " .. cmd.name, "MINER_COMMS")
                         table.remove(commandQueue, 1)
                     end
