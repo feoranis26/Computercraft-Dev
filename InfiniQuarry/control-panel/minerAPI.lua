@@ -12,11 +12,10 @@ function minerData:new(id, pos)
     mi.itemsSent = "GETTING..."
     mi.working = "GETTING..."
     mi.busy = true
-    mi.helper = false
     mi.quarryData = {}
 
     mi.commandQueue = {}
-    
+
     setmetatable(mi, self)
     self.__index = self
     return mi
@@ -27,9 +26,7 @@ function minerData:gotohome()
 end
 
 function minerData:start()
-    if not self.helper then
-        rednet.send(self.ID, "START", "MINER_COMMS")
-    end
+    rednet.send(self.ID, "START", "MINER_COMMS")
 end
 
 function minerData:stop()
@@ -45,12 +42,10 @@ function minerData:reboot()
 end
 
 function minerData:toggle()
-    if not self.helper then
-        if self.working then 
-            rednet.send(self.ID, "STOP", "MINER_COMMS") 
-        else
-            rednet.send(self.ID, "START", "MINER_COMMS")
-        end
+    if self.working then
+        rednet.send(self.ID, "STOP", "MINER_COMMS")
+    else
+        rednet.send(self.ID, "START", "MINER_COMMS")
     end
 end
 
@@ -84,9 +79,4 @@ function minerData:sendCommands()
             end
         end
     end
-end
-
-function minerData:setHelper(helper)
-    rednet.send(self.ID, "SET_HELPER", "MINER_COMMS")
-    rednet.send(self.ID, helper, "MINER_ARGS")
 end

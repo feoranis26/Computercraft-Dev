@@ -19,6 +19,30 @@ function contains(table, val)
     return false
 end
 
+
+function checkForLiquids() -- TODO: Test this!
+    local x, datUp = turtle.inspectUp()
+    local x, datDown = turtle.inspectDown()
+
+    if datUp ~= nil then
+        if datUp.name == "minecraft:water" or datUp.name == "minecraft:lava" then
+            turtle.digUp()
+
+            turtle.up()
+            turtle.down()
+        end
+    end
+    if datDown ~= nil then
+        if datDown.name == "minecraft:water" or datDown.name == "minecraft:lava" or datDown.name ==
+            "minecraft:flowing_water" or datDown.name == "minecraft:flowing_lava" then
+            turtle.digDown()
+            turtle.down()
+            turtle.up()
+        end
+    end
+end
+
+
 bannedBlocks = {"computercraft:turtle_advanced", "chisel:technical", "chisel:technical1", "chisel:factory"}
 
 function digUp()
@@ -32,6 +56,7 @@ function digForward()
     local t, d = turtle.inspect()
     if t and not contains(bannedBlocks, d.name) then
         turtle.dig()
+        checkForLiquids()
     end
 end
 

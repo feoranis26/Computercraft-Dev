@@ -74,6 +74,53 @@ workingMiners = 0
 term.setCursorPos(1, 1)
 scroll = 0
 
+centralControllerID = -1
+job_active = false
+
+function connectToController()
+    while true do
+        sleep(1)
+
+        rednet.broadcast("GET_HOSTS", "MINER_CENTRAL_COMMS")
+        s, m = rednet.receive("MINER_CENTRAL_COMMS", 5)
+
+        if m ~= nil and m == "HOST_AVAILABLE" then
+            rednet.send(s, "CONNECTION_REQUEST", "MINER_CENTRAL_COMMS")
+
+            for i = 0, 5 do
+                s2, ms2 = rednet.receive("MINER_CENTRAL_COMMS", 1)
+
+                if s2 == s and ms2 ~= nil and ms2 == "CONNECTION_OK" then
+                    rednet.send(s, "CONFIRM", "MINER_CENTRAL_COMMS")
+                    centralControllerID = s
+                    return
+                end
+            end
+        end
+    end
+end
+
+function centralControllerComms()
+    while true do
+        sleep(0.1)
+
+        if centralControllerID == -1 then
+            connectToController()
+        else
+           s, m = rednet.receive("MINER_CENTRAL_COMMS")
+
+           print(m)
+
+           if m == "START" then
+               job_active = true
+               controlMode = 4
+           elseif m == "STOP" then
+               job_active = false
+           end
+        end
+    end
+end
+
 function to_vector(x, y, z)
     local _vector = {}
     _vector.x = x
@@ -127,9 +174,40 @@ function updateRelocationUI()
     end
 end
 
-function relocate()
-    chposStatus = "STOPPING MINERS"
-    relocating = true
+function waitForMinersToFinish()
+    while true do
+        minersAreBusy = false
+        for i = 0, #miners - 1 do
+            local miner = miners[i + 1]
+            if miner.busy then
+                minersAreBusy = true
+            end
+        end
+        if not minersAreBusy then
+            break
+        end
+        sleep(1)
+    end
+end
+
+function homeAllMiners()
+    while true do
+        minersNotHomed = false
+        for i = 0, #miners - 1 do
+            local miner = miners[i + 1]
+            if not miner.busy and (miner.pos.x ~= hubPosition.x or miner.pos.z ~= hubPosition.z) then
+                minersNotHomed = true
+                miner:send("HOME")
+            end
+        end
+        if not minersNotHomed then
+            break
+        end
+        sleep(1)
+    end
+end
+
+function relocatePosition()
     quarryPos = quarryPos + 16
     if quarrySide ~= 3 and quarryPos == quarrySize then
         quarrySide = quarrySide + 1
@@ -140,6 +218,29 @@ function relocate()
         quarrySize = quarrySize + 32
         print("CHANGING SIZE to " .. quarrySize)
     end
+end
+
+function getNewLocation()
+    rednet.broadcast("GET_NEW_LOC", "MINER_CENTRAL_COMMS")
+
+    s, m = rednet.receive("MINER_CENTRAL_COMMS", 5)
+    if m ~= nil and m.size ~= nil and m.pos ~= nil and m.side ~= nil then
+        quarrySize = m.size
+        quarryPos = m.pos
+        quarrySide = m.side
+    else
+        relocatePosition()
+    end
+end
+
+function relocate()
+    chposStatus = "GETTING NEW LOCATION..."
+
+    relocating = true
+    
+    relocatePosition()
+
+    chposStatus = "STOPPING MINERS"
 
     while true do
         minersAreNotStopped = false
@@ -158,34 +259,8 @@ function relocate()
 
     relocationStatus = "HOMING MINERS"
 
-    while true do
-        minersNotHomed = false
-        for i = 0, #miners - 1 do
-            local miner = miners[i + 1]
-            if not miner.busy and (miner.pos.x ~= hubPosition.x or miner.pos.z ~= hubPosition.z) then
-                minersNotHomed = true
-                miner:send("HOME")
-            end
-        end
-        if not minersNotHomed then
-            break
-        end
-        sleep(1)
-    end
-
-    while true do
-        minersAreBusy = false
-        for i = 0, #miners - 1 do
-            local miner = miners[i + 1]
-            if miner.busy then
-                minersAreBusy = true
-            end
-        end
-        if not minersAreBusy then
-            break
-        end
-        sleep(1)
-    end
+    homeAllMiners()
+    waitForMinersToFinish()
 
     relocationStatus = "RECONFIGURING MINERS"
 
@@ -203,34 +278,9 @@ function relocate()
 
     relocationStatus = "MOVING MINERS"
 
-    while true do
-        minersNotHomed = false
-        for i = 0, #miners - 1 do
-            local miner = miners[i + 1]
-            if not miner.busy then
-                minersNotHomed = true
-                miner:send("HOME")
-            end
-        end
-        if not minersNotHomed then
-            break
-        end
-        sleep(1)
-    end
+    homeAllMiners()
+    waitForMinersToFinish()
 
-    while true do
-        minersAreBusy = false
-        for i = 0, #miners - 1 do
-            local miner = miners[i + 1]
-            if miner.busy then
-                minersAreBusy = true
-            end
-        end
-        if not minersAreBusy then
-            break
-        end
-        sleep(1)
-    end
     isNextBootAutomatic = true
     sleep(1)
 
@@ -323,7 +373,6 @@ function updateMinerInfo()
                         miner.quarryData = m.quarryData
                         miner.busy = m.busy
                         miner.homePos = m.homePos
-                        miner.helper = m.helper
                     end
                 else
                     miner.active = false
@@ -346,13 +395,11 @@ function buttons()
                 bX = x - (minerClicked * 40)
                 bY = y
                 if y > 18 and y < 22 then
-                    if not miners[minerClicked + 1].helper then
-                        if bX > 2 and bX < 8 then
-                            miners[minerClicked + 1]:toggle()
-                        end
-                        if bX > 12 and bX < 18 then
-                            miners[minerClicked + 1]:gotohome()
-                        end
+                    if bX > 2 and bX < 8 then
+                        miners[minerClicked + 1]:toggle()
+                    end
+                    if bX > 12 and bX < 18 then
+                        miners[minerClicked + 1]:gotohome()
                     end
                     if bX > 22 and bX < 28 then
                         miners[minerClicked + 1]:shutdown()
@@ -384,7 +431,7 @@ end
 
 gui = {}
 
-controlModeNames = {"MANUAL", "BALANCED", "AUTO"}
+controlModeNames = {"MANUAL", "BALANCED", "AUTO", "CENTRAL"}
 
 busyMiners = 0
 
@@ -405,8 +452,8 @@ function initControls()
     -- GUILabel.Label:new(gui, "controlModeLabel", sx / 2, 6, colors.white, "Control mode:")
 
     GUIButton.Button:new(gui, "controlModeButton", sx / 2, 8, 0, 3, colors.gray, function()
-        controlMode = math.max(1, math.min(4, controlMode + 1))
-        if controlMode == 4 then
+        controlMode = math.max(1, math.min(5, controlMode + 1))
+        if controlMode == 5 then
             controlMode = 1
         end
     end, "MANUAL", colors.black)
@@ -455,7 +502,8 @@ function updateControls()
     end
     while true do
         sleep(0.1)
-        gui:ChangeElement("minersLabel", "text", #miners .. " / " .. activeMiners .. " / " .. workingMiners .. " / " .. busyMiners)
+        gui:ChangeElement("minersLabel", "text",
+            #miners .. " / " .. activeMiners .. " / " .. workingMiners .. " / " .. busyMiners)
 
         gui:ChangeElement("homePosLabel", "text", "Home :" .. hubPosition.x .. ", " .. hubPosition.z .. ", " ..
             quarryPos .. ", " .. quarrySide .. ", " .. quarrySize)
@@ -504,57 +552,52 @@ function displayMinerInfo()
                 if miner.active then
 
                     -- telemetry
-                    if not miner.helper then
-                        if miner.position.z ~= nil then
-                            if miner.quarryData ~= nil and miner.quarryData.size ~= nil and miner.quarryData.side ~= nil and
-                                miner.quarryData.pos ~= nil then
-                                totalBlocks = miner.quarryData.size * miner.quarryData.size -
-                                                  (miner.quarryData.size - 2) * (miner.quarryData.size - 2)
-                                blocksMined = ((miner.quarryData.pos + 1) + (miner.quarryData.side * totalBlocks / 4))
-                                blocksLeft = (totalBlocks - blocksMined) * 3
-                                completeness = math.floor(blocksMined / totalBlocks * 100)
-                                term.setCursorPos(i * 40 + 7 + scroll, 11)
-                                term.write("Size : " .. miner.quarryData.size .. ", Completed : %" .. completeness)
-                                term.setCursorPos(i * 40 + 12 + scroll, 12)
-                                term.write("Blocks left: " .. blocksLeft)
-                            else
-                                term.setCursorPos(i * 40 + 7 + scroll, 11)
-                                term.write("NO QUARRY DATA!")
-                            end
-                            term.setCursorPos(i * 40 + 12 + scroll, 8)
-                            term.write("Fuel level :" .. miner.energyLevel)
-                            term.setCursorPos(i * 40 + 10 + scroll, 9)
-                            term.write("Position : " .. miner.position.x .. ", " .. miner.position.y .. ", " ..
-                                           miner.position.z)
-                            term.setCursorPos(i * 40 + 12 + scroll, 10)
-                            term.write("Busy :" .. tostring(miner.working or miner.busy))
-                        end
-
-                        -- start/stop button
-                        if miner.working then
-                            clr = colors.red
-                            t = "STOP!"
-                            workingMiners = workingMiners + 1
+                    if miner.position.z ~= nil then
+                        if miner.quarryData ~= nil and miner.quarryData.size ~= nil and miner.quarryData.side ~= nil and
+                            miner.quarryData.pos ~= nil then
+                            totalBlocks = miner.quarryData.size * miner.quarryData.size - (miner.quarryData.size - 2) *
+                                              (miner.quarryData.size - 2)
+                            blocksMined = ((miner.quarryData.pos + 1) + (miner.quarryData.side * totalBlocks / 4))
+                            blocksLeft = (totalBlocks - blocksMined) * 3
+                            completeness = math.floor(blocksMined / totalBlocks * 100)
+                            term.setCursorPos(i * 40 + 7 + scroll, 11)
+                            term.write("Size : " .. miner.quarryData.size .. ", Completed : %" .. completeness)
+                            term.setCursorPos(i * 40 + 12 + scroll, 12)
+                            term.write("Blocks left: " .. blocksLeft)
                         else
-                            clr = colors.green
-                            t = "START"
+                            term.setCursorPos(i * 40 + 7 + scroll, 11)
+                            term.write("NO QUARRY DATA!")
                         end
-
-                        if miner.busy then
-                            busyMiners = busyMiners + 1
-                        end
-
-                        -- buttons
-                        paintutils.drawFilledBox(i * 40 + 2 + scroll, 18, i * 40 + 8 + scroll, 22, clr)
-                        term.setCursorPos(i * 40 + 3 + scroll, 20)
-                        term.write(t)
-                        paintutils.drawFilledBox(i * 40 + 12 + scroll, 18, i * 40 + 18 + scroll, 22, colors.orange)
-                        term.setCursorPos(i * 40 + 13 + scroll, 20)
-                        term.write("CLLHM")
-                    else
-                        term.setCursorPos(i * 40 + 7 + scroll, 11)
-                        term.write("This miner is the helper.")
+                        term.setCursorPos(i * 40 + 12 + scroll, 8)
+                        term.write("Fuel level :" .. miner.energyLevel)
+                        term.setCursorPos(i * 40 + 10 + scroll, 9)
+                        term.write("Position : " .. miner.position.x .. ", " .. miner.position.y .. ", " ..
+                                       miner.position.z)
+                        term.setCursorPos(i * 40 + 12 + scroll, 10)
+                        term.write("Busy :" .. tostring(miner.working or miner.busy))
                     end
+
+                    -- start/stop button
+                    if miner.working then
+                        clr = colors.red
+                        t = "STOP!"
+                        workingMiners = workingMiners + 1
+                    else
+                        clr = colors.green
+                        t = "START"
+                    end
+
+                    if miner.busy then
+                        busyMiners = busyMiners + 1
+                    end
+
+                    -- buttons
+                    paintutils.drawFilledBox(i * 40 + 2 + scroll, 18, i * 40 + 8 + scroll, 22, clr)
+                    term.setCursorPos(i * 40 + 3 + scroll, 20)
+                    term.write(t)
+                    paintutils.drawFilledBox(i * 40 + 12 + scroll, 18, i * 40 + 18 + scroll, 22, colors.orange)
+                    term.setCursorPos(i * 40 + 13 + scroll, 20)
+                    term.write("CLLHM")
                     if i % 2 == 0 then
                         clr2 = colors.lightGray
                     else
@@ -628,89 +671,49 @@ function getActiveMiners()
     return activeMiners
 end
 
-function checkHelper()
-    topMiner = miners[1]
-    for i = 0, table.getn(miners) - 1 do
-        local miner = miners[i + 1]
-        if miner.active and miner.pos ~= nil and miner.pos.y >= topMiner.pos.y then
-            topMiner = miner
-        else
-            miner.helper = false
-        end
-    end
-
-    topMiner.helper = true
-    topMiner:setHelper(true)
-end
-
 function controlMiners()
     checkAutoBoot()
     waitForConnections();
 
     while true do
-        if controlMode == 2 or controlMode == 3 then
-            local activeMiners = getActiveMiners()
+        if controlMode == 3 or controlMode == 4 and job_active then
 
-            if table.getn(activeMiners) ~= 0 then
-                minMiner = activeMiners[1]
-                for i = 0, table.getn(activeMiners) - 1 do
-                    local miner = activeMiners[i + 1]
-                    if miner.active and miner.quarryData ~= nil and miner.quarryData.size ~= nil then
-                        totalBlocks = miner.quarryData.size * miner.quarryData.size - (miner.quarryData.size - 2) *
-                                          (miner.quarryData.size - 2)
-                        blocksMined = ((miner.quarryData.pos + 1) + (miner.quarryData.side * totalBlocks / 4))
-                        blocksLeft = (totalBlocks - blocksMined) * 3
-                        completeness = blocksMined / totalBlocks
-                        if miner.quarryData.size + completeness < minMiner.quarryData.size and not miner.helper then
-                            minMiner = miner
-                        end
+            for i = 1, table.getn(miners) - 1 do
+                local miner = miners[i + 1]
+                if miner.active and miner.quarryData ~= nil and miner.quarryData.size ~= nil then
+                    if miner.working and miner.quarryData.size > 18 then
+                        miner:stop()
+                        miner:send("HOME")
+                    elseif not miner.working then
+                        miner:start()
                     end
                 end
-
-                if not minMiner.working then
-                    if controlMode == 2 or (controlMode == 3 and minMiner.quarryData.size < 18) then
-                        minMiner:start()
-                    end
-                end
-
-                -- checkHelper()
-
-                for i = 1, table.getn(activeMiners) - 1 do
-                    local miner = activeMiners[i + 1]
-                    if miner.active and miner.quarryData ~= nil and miner.quarryData.size ~= nil and not miner.helper then
-                        if ((miner.quarryData.size > minMiner.quarryData.size + 2 and controlMode == 2) or
-                            (controlMode == 3 and miner.quarryData.size > 18)) and miner.working then
-                            miner:stop()
-
-                        elseif (controlMode == 2 and miner.quarryData.size < minMiner.quarryData.size + 2) or
-                            (controlMode == 3 and miner.quarryData.size < 18) and (not miner.working) and minMiner.ID ~=
-                            miner.ID then
-                            miner:start()
-                        end
-                    end
-                end
-
             end
-        end
-        if controlMode == 3 then
 
             allMinersBigEnough = true
-            if table.getn(miners) ~= 0 then
-                for i = 0, table.getn(miners) - 1 do
-                    local miner = miners[i + 1]
-                    if miner.active and miner.quarryData ~= nil and miner.quarryData.size ~= nil and
-                        miner.quarryData.size < 18 and not miner.helper then
-                        allMinersBigEnough = false
-                    else
-                        miner:stop()
-                    end
+            for i = 0, table.getn(miners) - 1 do
+                local miner = miners[i + 1]
+                if miner.active and miner.quarryData ~= nil and miner.quarryData.size ~= nil and miner.quarryData.size <
+                    18 then
+                    allMinersBigEnough = false
+                else
+                    miner:stop()
+                    miner:send("HOME")
                 end
-            else
-                allMinersBigEnough = false
             end
+
             if allMinersBigEnough then
                 relocate()
-                sleep(120)
+            end
+        end
+
+        if controlMode == 4 and not job_active then
+            for i = 0, table.getn(miners) - 1 do
+                local miner = miners[i + 1]
+                if miner.active then
+                    miner:stop()
+                    miner:send("HOME")
+                end
             end
         end
 
@@ -744,6 +747,31 @@ function controlMiners()
         end
 
         sleep(1)
+    end
+end
+
+function centralTelemetry()
+    while true do
+        sleep(1)
+
+        s, m = rednet.receive("MINER_CENTRAL_COMMS")
+
+        if m == "REQUEST_TELEMETRY" then
+            dat = {}
+            
+            dat.working = controlMode == 4 and job_active
+            dat.miners = workingMiners
+
+            qDat = {}
+            qDat.size = quarrySize
+            qDat.pos = quarryPos
+            qDat.side = quarrySide
+            qDat.home = hubPosition
+
+            dat.quarryData = qDat
+
+            rednet.send(s, dat, "MINER_CENTRAL_COMMS")
+        end
     end
 end
 
@@ -794,6 +822,6 @@ function init()
     hubPosition = getHomePosFromQuarryData()
     parallel.waitForAll(heartbeat.startHost, connectionHost, updateMinerInfo, displayMinerInfo, buttons, function()
         gui:events()
-    end, updateControls, controlMiners, saveQuarryData, updateRelocationUI)
+    end, updateControls, controlMiners, saveQuarryData, updateRelocationUI, centralControllerComms, centralTelemetry)
 end
 init()

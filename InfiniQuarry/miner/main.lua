@@ -21,7 +21,7 @@ end
 
 function mine()
     while true do
-        if miner.working and not miner.helper then
+        if miner.working then
             t, dwn = turtle.inspectDown()
             t, up = turtle.inspectUp()
 
@@ -57,12 +57,14 @@ function init()
     moveFunctions.faceFront()
 
     miner.yLevel = y
-
+    print(comms.prevHostID)
     comms.hostID = comms.Connect()
 
-    print("New host address permanently set to: " .. comms.hostID)
-    handler2 = fs.open("host", "w")
-    handler2.writeLine(comms.hostID)
+    if comms.hostID ~= -1 then
+        print("New host address permanently set to: " .. comms.hostID)
+        handler2 = fs.open("host", "w")
+        handler2.writeLine(comms.hostID)
+    end
 
     term.clear()
     term.setCursorPos(1, 1)

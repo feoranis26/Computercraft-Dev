@@ -97,12 +97,8 @@ function chunkLoader(mine)
     turtle.select(3)
     turtle.up()
     if mine then
-        turtle.select(4)
-        turtle.equipLeft()
         turtle.select(3)
         turtle.digUp()
-        turtle.select(4)
-        turtle.equipLeft()
     else
         turtle.placeUp()
     end

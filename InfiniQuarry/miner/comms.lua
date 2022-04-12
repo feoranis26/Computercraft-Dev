@@ -17,8 +17,8 @@ function Connect()
         print("Connecting, try " .. numTries .. " " .. c)
         numTries = numTries + 1
 
-        if prevHostID ~= -1 then
-            rednet.send(prevHostID, "CONNECTION_REQUEST", "MINER_CONNECTION")
+        if comms.prevHostID ~= -1 then
+            rednet.send(comms.prevHostID, "CONNECTION_REQUEST", "MINER_CONNECTION")
         else
             rednet.broadcast("CONNECTION_REQUEST", "MINER_CONNECTION")
         end
@@ -128,7 +128,6 @@ function processTelemetry()
             }
             dat.busy = miner.busy
             dat.homePos = miner.homePos
-            dat.helper = miner.helper
             rednet.send(s, dat, "MINER_TELEMETRY" .. os.getComputerID())
         end
     end

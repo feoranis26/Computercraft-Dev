@@ -23,6 +23,7 @@ function UI:display()
             end
         end
 
+        term.redirect(term.native())
         sleep(0.1)
     end
 end
@@ -36,6 +37,7 @@ function UI:displayOnce()
             element:display()
         end
     end
+    term.redirect(term.native())
 end
 
 function UI:AddElement(element)
@@ -49,7 +51,7 @@ function UI:events()
         e, s, x, y = os.pullEvent("monitor_touch")
         if self.monitor == nil or s == self.side then
             for n, element in pairs(self.elements) do
-                if element.type == "GUIButton" and x >= (element.coords.x - element.coords.w / 2) and x <= element.coords.w / 2 + element.coords.x and y >= (element.coords.y - element.coords.h / 2) and y <= element.coords.h / 2 + element.coords.y then
+                if element.enabled and element.type == "GUIButton" and x >= (element.coords.x - element.coords.w / 2) and x <= element.coords.w / 2 + element.coords.x and y >= (element.coords.y - element.coords.h / 2) and y <= element.coords.h / 2 + element.coords.y then
                     element.onPress()
                 end
             end
