@@ -148,7 +148,7 @@ function faceFront_Goto_unprotected()
 end
 function gotoReverse(sX, sY, dig)
     redoGoto = false
-    print("Goto attempt 2")
+    --print("goTo attempt 2")
     aX, aZ, aY = gps.locate()
     x2 = aX - sX
     y2 = aY - sY 
@@ -209,7 +209,11 @@ function gotoReverse(sX, sY, dig)
         end
     end
 end
-function goto(sX, sY, dig)
+function goTo(sX, sY, dig)
+    if dig == nil then
+        dig = false
+    end
+
     sX = math.floor(sX)
     sY = math.floor(sY)
     if not is_moving then
@@ -225,12 +229,12 @@ function goto_unprotected(sX, sY, dig)
     if aX ~= aX or aY ~= aY then
         return nil
     end
-    term.setCursorPos(1, 5)
-    print("Goto pos:",sX,sY," from ",aX,aY)
+    --term.setCursorPos(1, 5)
+    --print("goTo pos:",sX,sY," from ",aX,aY)
     x = aX - sX
     y2 = aY - sY 
 
-    print(x, y2)
+    --print(x, y2)
     if (aX ~= sX) or (aY ~= sY) then
         if x > 0 then
             turtle.turnLeft()
@@ -245,7 +249,7 @@ function goto_unprotected(sX, sY, dig)
                     digDown()
                 elseif turtle.detect() == true then
                     redoGoto = true
-                    print("redoing")
+                    --print("redoing")
                     break;
                 end
             end
@@ -262,13 +266,13 @@ function goto_unprotected(sX, sY, dig)
                     digDown()
                 elseif turtle.detect() == true then
                     redoGoto = true
-                    print("redoing")
+                    --print("redoing")
                     break;
                 end
             end
             turtle.turnLeft()
         end
-        print(redoGoto)
+        --print(redoGoto)
         if y2 > 0 and redoGoto == false then
             for b = 0, y2 - 1 do
                 while is_paused do sleep(1) end
@@ -280,7 +284,7 @@ function goto_unprotected(sX, sY, dig)
                     digDown()
                 elseif turtle.detect() == true then
                     redoGoto = true
-                    print("redoing")
+                    --print("redoing")
                     break;
                 end
             end
@@ -297,7 +301,7 @@ function goto_unprotected(sX, sY, dig)
                     digDown()
                 elseif turtle.detect() == true then
                     redoGoto = true
-                    print("redoing")
+                    --print("redoing")
                     break;
                 end
             end
@@ -309,16 +313,20 @@ function goto_unprotected(sX, sY, dig)
         end
     end
 end
-function gotoY(goY)
+function gotoY(goY, dig)
     gyx, gyy, gyz = gps.locate()
     if gyy > goY then
         for i = 0, (gyy - goY) - 1 do
-            digDown()
+            if dig then
+                digDown()
+            end
             turtle.down()
         end
     elseif gyy < goY then
         for i = 0, (goY - gyy) - 1 do
-            digUp()
+            if dig then
+                digDown()
+            end
             turtle.up()
         end
     end
@@ -336,7 +344,7 @@ function goto_multiple(tX, tZ, dig)
 
         sleep(1)
         faceFront_Goto(dig)
-        goto(tX, tZ, dig)
+        goTo(tX, tZ, dig)
     end 
     faceFront(dig)
 end

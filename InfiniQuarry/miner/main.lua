@@ -64,6 +64,7 @@ function init()
         print("New host address permanently set to: " .. comms.hostID)
         handler2 = fs.open("host", "w")
         handler2.writeLine(comms.hostID)
+        handler2.close()
     end
 
     term.clear()

@@ -40,6 +40,6 @@ function startHost()
                 end
             end
         end
-        sleep(1)
+        sleep(0.25)
     end
 end

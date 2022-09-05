@@ -5,6 +5,7 @@ os.loadAPI("controllerAPI.lua")
 rednet.open("back")
 
 controllers = {}
+controllerIDs = {}
 
 dashboard = peripheral.wrap("monitor_0")
 controllersDashboard = peripheral.wrap("right")
@@ -12,6 +13,15 @@ controllersDashboard = peripheral.wrap("right")
 term.clear()
 term.setCursorPos(1, 1)
 print("InfiniQuarry Coordinator Server Init")
+
+function contains(table, val)
+    for i = 1, #table do
+        if table[i] == val then
+            return true
+        end
+    end
+    return false
+end
 
 function coordinatorServer()
     while true do
@@ -154,6 +164,62 @@ function initGUI()
     controllersGUI = GUI.UI:new("right")
     GUILabel.Label:new(controllersGUI, "Label", leftMonSX / 2, 1, colors.white,
         "            ----InfiniQuarry - Controllers----             ", colors.gray)
+end
+
+function control()
+    while true do
+        sleep(2)
+
+        if running then
+            sendToControllers("START")
+        else
+            sendToControllers("STOP")
+        end
+    end
+end
+
+quarrySize = 0
+quarryPos = 0
+quarrySide = 0
+
+function relocatePosition()
+    quarryPos = quarryPos + 16
+    if quarrySide ~= 3 and quarryPos == quarrySize then
+        quarrySide = quarrySide + 1
+        quarryPos = 0
+    elseif quarryPos == quarrySize then
+        quarrySide = 0
+        quarryPos = 0
+        quarrySize = quarrySize + 32
+        print("CHANGING SIZE to " .. quarrySize)
+    end
+end
+
+function centralServer()
+    while true do
+        sleep(1)
+        s, m = rednet.receive("MINER_CENTRAL_COMMS")
+
+        if contains(heartbeat.IDs, s) then
+            if m == "GET_NEW_POS" then
+                relocatePosition()
+
+                quarryData = {}
+                quarryData.side = quarrySide
+                quarryData.pos = quarryPos
+                quarryData.size = quarrySize
+
+                rednet.send(s, )
+            end
+        end
+    end
+end
+
+function load()
+    handler = fs.open("quarryData", "r")
+    quarrySide = tonumber(handler.readLine())
+    quarryPos = tonumber(handler.readLine())
+    quarrySize = tonumber(handler.readLine())
 end
 
 function init()

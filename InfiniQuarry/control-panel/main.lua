@@ -78,45 +78,46 @@ centralControllerID = -1
 job_active = false
 
 function connectToController()
-    while true do
-        sleep(1)
+    rednet.broadcast("GET_HOSTS", "MINER_CENTRAL_COMMS")
+    s, m = rednet.receive("MINER_CENTRAL_COMMS", 5)
 
-        rednet.broadcast("GET_HOSTS", "MINER_CENTRAL_COMMS")
-        s, m = rednet.receive("MINER_CENTRAL_COMMS", 5)
+    if m ~= nil and m == "HOST_AVAILABLE" then
+        rednet.send(s, "CONNECTION_REQUEST", "MINER_CENTRAL_COMMS")
 
-        if m ~= nil and m == "HOST_AVAILABLE" then
-            rednet.send(s, "CONNECTION_REQUEST", "MINER_CENTRAL_COMMS")
+        for i = 0, 5 do
+            s2, ms2 = rednet.receive("MINER_CENTRAL_COMMS", 1)
 
-            for i = 0, 5 do
-                s2, ms2 = rednet.receive("MINER_CENTRAL_COMMS", 1)
-
-                if s2 == s and ms2 ~= nil and ms2 == "CONNECTION_OK" then
-                    rednet.send(s, "CONFIRM", "MINER_CENTRAL_COMMS")
-                    centralControllerID = s
-                    return
-                end
+            if s2 == s and ms2 ~= nil and ms2 == "CONNECTION_OK" then
+                rednet.send(s, "CONFIRM", "MINER_CENTRAL_COMMS")
+                centralControllerID = s
+                return
             end
         end
     end
 end
 
 function centralControllerComms()
+    centraltimeouts = 0
     while true do
         sleep(0.1)
 
         if centralControllerID == -1 then
             connectToController()
         else
-           s, m = rednet.receive("MINER_CENTRAL_COMMS")
+            s, m = rednet.receive("MINER_CENTRAL_COMMS", 5)
 
-           print(m)
+            if m == "START" then
+                job_active = true
+            elseif m == "STOP" then
+                job_active = false
+            elseif m == nil then
+                centraltimeouts = centraltimeouts + 1
+            end
+        end
 
-           if m == "START" then
-               job_active = true
-               controlMode = 4
-           elseif m == "STOP" then
-               job_active = false
-           end
+        if centraltimeouts >= 2 then
+            centraltimeouts = 0
+            centralControllerID = -1
         end
     end
 end
@@ -221,13 +222,15 @@ function relocatePosition()
 end
 
 function getNewLocation()
-    rednet.broadcast("GET_NEW_LOC", "MINER_CENTRAL_COMMS")
 
-    s, m = rednet.receive("MINER_CENTRAL_COMMS", 5)
-    if m ~= nil and m.size ~= nil and m.pos ~= nil and m.side ~= nil then
-        quarrySize = m.size
-        quarryPos = m.pos
-        quarrySide = m.side
+    if centralControllerID ~= -1 then
+        rednet.broadcast("GET_NEW_POS", "MINER_CENTRAL_COMMS")
+        s, m = rednet.receive("MINER_CENTRAL_COMMS")
+        if m ~= nil and m.size ~= nil and m.pos ~= nil and m.side ~= nil then
+            quarrySize = m.size
+            quarryPos = m.pos
+            quarrySide = m.side
+        end
     else
         relocatePosition()
     end
@@ -237,7 +240,7 @@ function relocate()
     chposStatus = "GETTING NEW LOCATION..."
 
     relocating = true
-    
+
     relocatePosition()
 
     chposStatus = "STOPPING MINERS"
@@ -423,8 +426,6 @@ function buttons()
             if scroll > 0 then
                 scroll = 0
             end
-            print(scroll)
-            print("CLICKED")
         end
     end
 end
@@ -519,6 +520,7 @@ function displayMinerInfo()
     term.setBackgroundColor(colors.black)
     paintutils.drawFilledBox(1, 1, sW, sY)
     while true do
+        term.redirect(mon)
         activeMiners = 0
         workingMiners = 0
         busyMiners = 0
@@ -616,9 +618,9 @@ function displayMinerInfo()
 
             end
         end
+        term.redirect(term.native())
         gui:displayOnce()
-        term.redirect(mon)
-        sleep(0.1)
+        sleep(1)
     end
 end
 
@@ -678,7 +680,7 @@ function controlMiners()
     while true do
         if controlMode == 3 or controlMode == 4 and job_active then
 
-            for i = 1, table.getn(miners) - 1 do
+            for i = 0, table.getn(miners) - 1 do
                 local miner = miners[i + 1]
                 if miner.active and miner.quarryData ~= nil and miner.quarryData.size ~= nil then
                     if miner.working and miner.quarryData.size > 18 then
@@ -746,6 +748,15 @@ function controlMiners()
             relocate()
         end
 
+        if centralControllerID ~= -1 and controlMode ~= 4 then
+            pcontrolMode = controlMode
+            controlMode = 4
+        elseif pcontrolMode ~= nil then
+            controlMode = pcontrolMode
+        elseif centralControllerID == -1 then
+            controlMode = 1
+        end
+
         sleep(1)
     end
 end
@@ -758,7 +769,7 @@ function centralTelemetry()
 
         if m == "REQUEST_TELEMETRY" then
             dat = {}
-            
+
             dat.working = controlMode == 4 and job_active
             dat.miners = workingMiners
 
@@ -813,7 +824,7 @@ function saveQuarryData()
         end
 
         handler.close()
-        sleep(5)
+        sleep(10)
     end
 end
 

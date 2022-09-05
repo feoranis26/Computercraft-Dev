@@ -63,7 +63,7 @@ function checkPos()
             atPos = false
             while atPos == false do
                 moveFunctions.faceFront_Goto(true)
-                moveFunctions.goto(mX, mZ, true)
+                moveFunctions.goTo(mX, mZ, true)
                 x, y, z = gps.locate()
                 if x == mX and z == mZ then
                     atPos = true
